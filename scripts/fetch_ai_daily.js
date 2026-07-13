@@ -4,8 +4,9 @@
  * 使用本地时区日期，禁止 PowerShell ConvertFrom-Json
  *
  * 用法:
- *   node fetch_ai_daily.js [输出目录]
- *   省略目录时默认: D:\OpenClaw\AI日报配图\{本地今天}
+ *   node fetch_ai_daily.js <输出目录>
+ *   输出目录应由 Agent 按 config.md 的 {OUTPUT_ROOT}\yyyy-MM-dd 传入
+ *   省略目录时：尝试读 ../config.md 的 OUTPUT_ROOT + 本地今天；仍失败则报错退出
  */
 const https = require('https');
 const fs = require('fs');
@@ -19,10 +20,28 @@ function localDateYmd() {
   return `${y}-${m}-${day}`;
 }
 
+function readOutputRootFromConfig() {
+  const configPath = path.resolve(__dirname, '..', 'config.md');
+  if (!fs.existsSync(configPath)) return null;
+  const text = fs.readFileSync(configPath, 'utf8');
+  const m = text.match(/\|\s*`\{OUTPUT_ROOT\}`\s*\|\s*`([^`]*)`\s*\|/);
+  return m && m[1] ? m[1].trim() : null;
+}
+
 const date = localDateYmd();
-const outDir = path.resolve(
-  process.argv[2] || path.join('D:', 'OpenClaw', 'AI日报配图', date)
-);
+let outDir;
+if (process.argv[2]) {
+  outDir = path.resolve(process.argv[2]);
+} else {
+  const root = readOutputRootFromConfig();
+  if (!root) {
+    console.error(
+      '用法: node fetch_ai_daily.js <输出目录>\n或先在 config.md 填写 {OUTPUT_ROOT}'
+    );
+    process.exit(1);
+  }
+  outDir = path.resolve(root, date);
+}
 const outFile = path.join(outDir, 'raw_daily.json');
 
 fs.mkdirSync(outDir, { recursive: true });

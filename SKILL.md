@@ -1,7 +1,7 @@
 ---
 name: ai-daily
 description: "AI日报/GitHub开源日报全自动发布。触发词：发布日报/写日报/StarAI日报/生成日报/公众号日报/发布GitHub日报/StarAI开源日报/GitHub热门项目/定时任务/cron/自动发布。执行4步：抓取->批量生图->写文章+排版->publish_article.js 发布并返回media_id。独立skill；定时任务零交互。"
-version: 2.5.1
+version: 2.5.2
 author: StarAI
 license: MIT
 metadata:
@@ -29,10 +29,13 @@ metadata:
 
 ## 首次使用前必读
 
-1. **编辑 `config.md`**：填写你本机的路径配置（输出目录、脚本路径等）
-2. **选择风格**：在 `config.md` 中从 `styles/cover/` 和 `styles/chapter/` 各选一个风格，或自定义
-3. **配置微信凭证**：在微信发布脚本目录下创建 `.env` 文件，填入 `WECHAT_APP_ID` 和 `WECHAT_APP_SECRET`
-4. **安装依赖**：确保 node、bun、npx 可用
+1. **复制配置**：若只有 `config.example.md`，先复制为 `config.md`
+2. **创建输出文件夹**（必做）：在本机新建两个目录（名称自定），分别填入 `config.md` 的 `{OUTPUT_ROOT}`（AI 日报）与 `{OUTPUT_ROOT_GITHUB}`（GitHub 日报）。封面/配图会按 **`{OUTPUT_ROOT}\yyyy-MM-dd\`** 落盘
+3. **填写其余路径**：`DOUBAO_BATCH`、`PUBLISH_TOOL`、`CLEANUP_TOOL`（默认 `scripts/cleanup.js`）、`EDGE_PROFILE` 等
+4. **选择风格**：在 `config.md` 中从 `styles/cover/` 和 `styles/chapter/` 各选一个风格，或自定义
+5. **配置微信凭证**：在微信发布脚本目录下创建 `.env` 文件，填入 `WECHAT_APP_ID` 和 `WECHAT_APP_SECRET`
+6. **安装依赖**：确保 node、bun、npx 可用
+7. **自检清理配置**：`node scripts/cleanup.js --dry-run`（应打印两个 OUTPUT 路径且不误删）
 
 ## 用户配置（从 config.md 读取）
 
@@ -104,11 +107,12 @@ metadata:
 
 1. **禁止向用户提问**（信息源、是否发布、风格选择全部跳过）
 2. 信息源固定读 `config.md`：`AI_DAILY_SOURCE` / `GITHUB_DAILY_SOURCE`（默认 A）；忽略 `FIRST_RUN`
-3. 生图**只**用 `{DOUBAO_BATCH}`（同一对话框）；**禁止** for 循环调用 `{DOUBAO_GEN}`
-4. 部分失败：改 `_batch_config` 后**再跑一遍 batch**（已成功文件会 skip，会话 URL 续聊）；禁止改用多次 gen 新开会话
-5. 必须执行：`node {PUBLISH_TOOL} ...`，成功条件为目录下出现 `publish_result.json` 且含 `media_id`
-6. 对外只回报：模式 + 标题 + media_id + 草稿箱链接；失败只报错误原因与已完成步骤
-7. **禁止**使用已删除的 `starai-daily` / `starai-github-daily` / `starai-daily-publish` 路径
+3. 生图**整次任务只允许 1～2 次** `{DOUBAO_BATCH}`（同一对话框，batch 内部不关再开）
+4. **绝对禁止**：循环 `doubao_gen`、删除 `_doubao_chat_url.txt`、每次失败就重新 create-image、改 batch 源码
+5. 部分失败：最多再跑 **1 次** batch（skip 成功图 + 读会话 URL 续聊）；仍失败则停止并报错
+6. 必须执行：`node {PUBLISH_TOOL} ...` + `verify_publish.js`；成功标准仅 media_id
+7. 对外成功模板：标题 + 本地时间 + media_id + 草稿箱链接；中间工具失败但 verify 成功仍报成功
+8. **禁止**使用已删除的 `starai-daily` / `starai-github-daily` / `starai-daily-publish` 路径
 
 ### 完成定义（缺一不可）
 
@@ -133,8 +137,11 @@ metadata:
 6. **禁止** `Get-Process msedge` / `Stop-Process -Name msedge` / `taskkill /im msedge.exe`
    （会杀用户浏览器 → Playwright 页关闭 → 生图全失败 → cron 报错）
 7. 浏览器**只**由 `doubao_batch.js` / `doubao_gen.js` 管理；脚本内部只会结束 **EdgeProfile** 相关进程，agent 不要自己管浏览器
-8. **禁止**对每张图单独 `node doubao_gen.js`（每跑一次可能新开豆包历史会话）；多图/补图统一 `doubao_batch.js`
-9. **禁止**在豆包页面「生成完就关对话框再开新窗口」；同一日报目录内会话锚点为 `_doubao_chat_url.txt`
+8. **禁止**对每张图单独 `node doubao_gen.js`（每跑一次会关浏览器再开 = 新会话）；多图/补图统一 **一条** `doubao_batch.js`
+9. **禁止**在豆包页面「生成完关浏览器再开」；整次任务生图进程内必须保持同一对话框
+10. **禁止** `Remove-Item` / 删除 / 清空 `_doubao_chat_url.txt`（定时日志已证实：删锚点会导致反复 create-image 刷历史）
+11. **禁止**修改 `doubao_batch.js` / `doubao_gen.js` 源码来“绕过”
+12. **整次任务 `doubao_batch` 最多执行 2 次**（第 2 次仅补失败图且必须带已有会话 URL）；禁止 3 次以上反复开关 Edge
 
 ## 发布后强制验收
 
@@ -360,18 +367,35 @@ GitHub 日报将第三个参数改为 `"github"`。
 
 **安全注意**：微信 API 凭证通过外部 .env 文件读取，不写入本 skill。
 
-#### 4.3 清理旧目录
+#### 4.3 强制验收（verify）
 
-```powershell
-node {CLEANUP_TOOL}
-```
-
-#### 4.4 向用户报告（成功/失败模板强制）
-
-1. **强制验收**：`node D:\OpenClaw\ai-daily-skill\scripts\verify_publish.js "{日期目录}"`
+1. **强制验收**：`node scripts/verify_publish.js "{日期目录}"`（或 skill 安装路径下的同脚本）
 2. **唯一成功标准**：`verify_publish` exit 0 且 `publish_result.json` 含 `media_id`
 3. 中间步骤（如单独跑 validate_gzh）失败但最终 publish+verify 成功 → **必须报成功**，禁止把中间错误当最终失败
 4. **禁止**返回文章正文
+
+#### 4.4 清理旧日期目录（verify 成功后强制）
+
+**每次发布且 verify 通过后必须执行**（定时 cron 同样强制；失败只记日志，不推翻发布成功）：
+
+```powershell
+node {CLEANUP_TOOL}
+# 等价：node scripts/cleanup.js
+# 预览不删：node scripts/cleanup.js --dry-run
+```
+
+**保留策略（写死，勿改口径）**：
+
+| 项 | 规则 |
+|----|------|
+| 范围 | `{OUTPUT_ROOT}` 与 `{OUTPUT_ROOT_GITHUB}` **各自独立**扫描 |
+| 计入 | 仅纯日期夹 `YYYY-MM-DD`；`*-backup*` 等不计入 |
+| 今天 | **永不删除**，且不计入「历史数量」 |
+| 触发 | 某根目录历史日期夹数量 **≥ 14** |
+| 动作 | 删除最早的，**只保留最新 7 个**历史日期夹 |
+| 路径来源 | `cleanup.js` 读 `config.md` 的 `OUTPUT_ROOT` / `OUTPUT_ROOT_GITHUB`（可用 `--roots` 覆盖） |
+
+#### 4.5 向用户报告（成功/失败模板强制）
 
 **成功时必须按下面格式回复（缺一不可）**：
 
@@ -455,6 +479,13 @@ AI 会：
 详细故障排除见 `references/troubleshooting.md`。
 
 ## CHANGELOG
+
+### v2.5.2 (2026-07-14)
+- **目录清理收进 skill**：`scripts/cleanup.js` 从 `config.md` 读 `OUTPUT_ROOT` / `OUTPUT_ROOT_GITHUB`
+- **保留策略**：每个输出根目录独立；历史 `YYYY-MM-DD` ≥14 时只保留最新 7 个；今天永不删；backup 名不计入
+- **流程强制**：verify 成功后必须执行 cleanup（失败不推翻发布成功）
+- **开源首次引导**：`config.example.md`；首次必读要求自建输出文件夹 + `cleanup --dry-run` 自检
+- `fetch_ai_daily.js` 省略参数时读 config 的 OUTPUT_ROOT，不再硬编码本机盘符
 
 ### v2.5.1 (2026-07-13)
 - **成功通知模板**：标题 + 本地发布时间 + media_id + 草稿箱链接；最终以 verify_publish 为准，中间工具失败不算整单失败

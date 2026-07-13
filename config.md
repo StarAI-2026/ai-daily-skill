@@ -16,7 +16,7 @@
 | `{DOUBAO_BATCH}` | `D:\OpenClaw\doubao_batch.js` | 批量生图脚本路径 |
 | `{DOUBAO_GEN}` | `D:\OpenClaw\doubao_gen.js` | 单图补生成脚本路径 |
 | `{PUBLISH_TOOL}` | `D:\OpenClaw\workspace\skills\daily-folder-cleanup\publish_article.js` | 发布工具脚本路径 |
-| `{CLEANUP_TOOL}` | `D:\OpenClaw\workspace\skills\daily-folder-cleanup\cleanup.js` | 目录清理脚本路径 |
+| `{CLEANUP_TOOL}` | `D:\OpenClaw\ai-daily-skill\scripts\cleanup.js` | 日期目录清理（≥14 保留最新 7；读本文件 OUTPUT_ROOT） |
 | `{WECHAT_DIR}` | `D:\OpenClaw\workspace\skills\baoyu-post-to-wechat` | 微信发布脚本所在目录 |
 
 ## 风格配置

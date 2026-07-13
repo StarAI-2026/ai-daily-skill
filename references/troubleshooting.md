@@ -7,7 +7,8 @@
 | **API 请求返回 403 错误** | 微信或 AI HOT API 服务器拦截了无 User-Agent 标头的请求。 | 必须在请求 Headers 中补充类似 `User-Agent: Mozilla/5.0 aihot-skill/0.2.0`。 |
 | **新闻数据中文乱码** | PowerShell `Invoke-RestMethod` 编码解析机制缺陷，导致抓取的 UTF-8 中文出现乱码。 | 必须使用 Node.js 脚本来执行 API 请求，并保存为 JSON。 |
 | **Edge / 豆包生图失败** | `doubao_batch.js` 用 EdgeProfile 自管浏览器，**不需要 9222**。登录失效或 profile 被占用。 | 用 `Start-Process msedge --user-data-dir=D:\OpenClaw\EdgeProfile https://www.doubao.com/chat` 手动登录一次；关闭占用 EdgeProfile 的进程后重试 batch。**禁止** taskkill 用户日常 Edge。 |
-| **豆包历史对话爆炸** | agent 对每张图跑 `doubao_gen.js`，每次 goto create-image 新建会话 | **只**用 `doubao_batch.js` 同对话连续生图；补图再跑 batch（读 `_doubao_chat_url.txt` 续聊），禁止循环 gen |
+| **豆包历史对话爆炸** | ①循环 `doubao_gen` ②多次重跑 batch 且删除 `_doubao_chat_url.txt` ③把 create-image 当会话 URL | **整次最多 2 次 batch**；禁止删会话文件；禁止循环 gen；脚本已拒绝无效 create-image 锚点 |
+| **batch 报「已有大图但缺会话 URL」** | agent 误删了 `_doubao_chat_url.txt` | 从日志/备份恢复 URL，或清空该日 png 后整批重来；禁止再开 create-image 硬补 |
 | **豆包（doubao.com）提示登录** | Playwright CDP 连接成功，但由于用户在 Edge 中未登录或 Cookie 失效，导致弹出登录框。 | 提醒用户在 Edge 中手动登录 `https://www.doubao.com/chat` 确保能正常聊天，不要在脚本中注入凭证。 |
 | **生图任务超时** | 豆包生图在服务器端排队严重，或网络响应过慢，超出脚本预设的等待时间。 | 适当增加 `doubao_batch.js` 的等待超时阈值（如设为 120s）。若依然失败，可考虑使用 `doubao_gen.js` 对失败的图片单独补生成。 |
 | **生图只有 384x216 大小** | 获取的是豆包页面预览图，并非高清原图。 | 必须在 `doubao_batch.js` 脚本中触发“下载原图”的点击事件，获取完整质量的大图（~5MB）。 |

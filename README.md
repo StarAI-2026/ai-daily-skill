@@ -2,7 +2,7 @@
 
 将 AI 资讯 / GitHub 开源热榜自动转化为 B站科技UP主风格文章，配自定义风格的封面图和章节配图，发布到微信公众号草稿箱。
 
-**当前版本：v2.5.1**
+**当前版本：v2.5.2**
 
 ## 特点
 
@@ -25,11 +25,19 @@ git clone https://github.com/StarAI-2026/ai-daily-skill.git
 
 ### 2. 配置
 
+```bash
+cp config.example.md config.md   # 若仓库只带 example
+```
+
 编辑 `config.md`：
 
-- 填写本机路径：`OUTPUT_ROOT`、`DOUBAO_BATCH`、`PUBLISH_TOOL` 等
+- **先创建两个本机文件夹**，填入 `OUTPUT_ROOT`（AI）与 `OUTPUT_ROOT_GITHUB`（GitHub）——封面/配图按 `yyyy-MM-dd` 子目录保存
+- 填写 `DOUBAO_BATCH`、`PUBLISH_TOOL`、`CLEANUP_TOOL`（默认 `scripts/cleanup.js`）等
 - 选择 `COVER_STYLE` / `CHAPTER_STYLE`
 - 设置 `TYPESER` / `GZH_THEME`（精致排版，可选）
+- 自检：`node scripts/cleanup.js --dry-run`
+
+**目录保留**：每个输出根目录独立扫描；历史日期夹 ≥14 时只保留最新 7 个；今天永不删。发布 verify 成功后必须跑 cleanup。
 
 微信凭证写在发布工具目录的 `.env`（`WECHAT_APP_ID` / `WECHAT_APP_SECRET`），不要写进本仓库。
 
@@ -61,12 +69,14 @@ ai-daily-skill/
 ├── styles/
 │   ├── cover/               # 封面风格
 │   └── chapter/             # 章节配图风格
+├── config.example.md        # 开源占位配置（复制为 config.md）
 └── scripts/
-    ├── fetch_ai_daily.js          # AI 日报抓取（本地日期）
+    ├── fetch_ai_daily.js          # AI 日报抓取（本地日期 / 读 OUTPUT_ROOT）
     ├── fetch_weekly_trending.py   # GitHub 周榜多后端抓取
     ├── typeset_gzh.py             # 摸鱼绿等 gzh 排版
     ├── validate_gzh_html.py       # 公众号 HTML 合规校验
-    └── verify_publish.js          # 发布完成硬门禁
+    ├── verify_publish.js          # 发布完成硬门禁
+    └── cleanup.js                 # 日期目录清理（≥14 留最新 7）
 ```
 
 ## 4 步流程（摘要）
