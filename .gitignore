@@ -1,0 +1,14 @@
+﻿.env
+*.secret
+*.key
+node_modules/
+__pycache__/
+*.pyc
+.DS_Store
+Thumbs.db
+*.tmp
+*.bak
+# local runtime state (do not publish)
+scripts/.trending_state.json
+scripts/__pycache__/
+_same_dialog_test/

@@ -1,7 +1,7 @@
 ---
 name: ai-daily
-description: "AI日报全自动发布。当用户说'发布日报'/'写日报'/'StarAI日报'/'生成日报'/'公众号日报'/'发布GitHub日报'/'StarAI开源日报'/'GitHub热门项目'时自动执行4步：抓取新闻数据→批量生成封面+章节配图→写文章→发布到微信公众号并返回media_id。独立skill，全部逻辑自包含，不依赖其他skill。配置已参数化，可直接开源。"
-version: 1.1.0
+description: "AI日报/GitHub开源日报全自动发布。触发词：发布日报/写日报/StarAI日报/生成日报/公众号日报/发布GitHub日报/StarAI开源日报/GitHub热门项目/定时任务/cron/自动发布。执行4步：抓取->批量生图->写文章+排版->publish_article.js 发布并返回media_id。独立skill；定时任务零交互。"
+version: 2.5.1
 author: StarAI
 license: MIT
 metadata:
@@ -15,9 +15,10 @@ metadata:
 
 # AI日报 - 全自动发布工作流
 
-将 AI 资讯转化为 B站科技UP主风格文章，配豆包生成的封面图和章节配图，发布到微信公众号。
+将 AI 资讯转化为 B站科技UP主风格文章，配自定义风格的封面图和章节配图，发布到微信公众号。
 
 **独立技能**：所有逻辑自包含，不依赖其他 skill 配合。4 步完成从新闻到发布。
+**风格可自定义**：封面和配图风格可在 `config.md` 中自由选择或自定义。
 **可开源**：所有环境相关路径/凭证均参数化，不含任何硬编码敏感信息。
 
 ## 语言
@@ -26,24 +27,35 @@ metadata:
 
 ---
 
-## 用户配置（首次使用前请修改为本机实际值）
+## 首次使用前必读
 
-本 skill 不含任何硬编码本地路径。以下变量在执行时会按此处的值替换。开源前请把下方示例值换成你自己的路径并删除示例中的真实凭证。
+1. **编辑 `config.md`**：填写你本机的路径配置（输出目录、脚本路径等）
+2. **选择风格**：在 `config.md` 中从 `styles/cover/` 和 `styles/chapter/` 各选一个风格，或自定义
+3. **配置微信凭证**：在微信发布脚本目录下创建 `.env` 文件，填入 `WECHAT_APP_ID` 和 `WECHAT_APP_SECRET`
+4. **安装依赖**：确保 node、bun、npx 可用
 
-| 变量 | 示例值（当前测试机） | 说明 |
-|------|----------------------|------|
-| `{OUTPUT_ROOT}` | `D:\OpenClaw\AI日报配图` | AI日报的输出根目录，按日期建子目录 |
-| `{OUTPUT_ROOT_GITHUB}` | `D:\OpenClaw\GitHub日报配图` | GitHub日报的输出根目录 |
-| `{EDGE_PATH}` | `C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe` | 本机 Edge 可执行文件路径 |
-| `{NODE_MODULES}` | `C:\Users\23736\AppData\Roaming\npm\node_modules` | 全局 npm node_modules 路径 |
-| `{DOUBAO_BATCH}` | `D:\OpenClaw\doubao_batch.js` | 批量生图脚本 |
-| `{DOUBAO_GEN}` | `D:\OpenClaw\doubao_gen.js` | 单图补生成脚本 |
-| `{PUBLISH_TOOL}` | `D:\OpenClaw\workspace\skills\daily-folder-cleanup\publish_article.js` | 发布工具脚本 |
-| `{CLEANUP_TOOL}` | `D:\OpenClaw\workspace\skills\daily-folder-cleanup\cleanup.js` | 目录清理脚本 |
-| `{WECHAT_DIR}` | `D:\OpenClaw\workspace\skills\baoyu-post-to-wechat` | 微信发布脚本所在目录 |
-| `{WECHAT_SCRIPT}` | `{WECHAT_DIR}\scripts\wechat-api.ts` | 微信草稿发布脚本（支持 --dry-run） |
+## 用户配置（从 config.md 读取）
 
-> **开源注意**：以上脚本（doubao_batch.js / publish_article.js / wechat-api.ts 等）不在本 skill 仓库内，属于外部工具依赖。开源时应在 README 中列出这些工具的获取方式，或者把它们一并打包进 skill。
+执行前**必须先读取 `config.md`**，获取以下信息：
+- 所有 `{占位符}` 路径的实际值
+  - `{OUTPUT_ROOT}` / `{OUTPUT_ROOT_GITHUB}`：AI/GitHub 日报输出根目录
+  - `{EDGE_PATH}`：Edge 浏览器可执行文件路径
+  - `{EDGE_PROFILE}`：Edge 独立 Profile 目录路径
+  - `{NODE_MODULES}`：全局 npm node_modules 路径
+  - `{DOUBAO_BATCH}`：批量生图脚本路径
+  - `{DOUBAO_GEN}`：单图补生成脚本路径
+  - `{PUBLISH_TOOL}`：发布工具脚本路径
+  - `{CLEANUP_TOOL}`：目录清理脚本路径
+  - `{WECHAT_DIR}`：微信发布脚本所在目录
+  - `{GZH_SKILL_DIR}`：gzh-design-skill 安装目录（排版组件库 + 校验/内嵌脚本）
+- `COVER_STYLE`：封面风格文件名（对应 `styles/cover/{COVER_STYLE}.md`）
+- `CHAPTER_STYLE`：配图风格文件名（对应 `styles/chapter/{CHAPTER_STYLE}.md`）
+- `TYPESER`：是否启用 gzh-design-skill 精致排版（`true`/`false`）
+- `GZH_THEME`：排版主题名（如 `moyu-green`）
+- `TRENDING_BACKEND`：GitHub 周榜数据源（`html_fallback` 默认主后端 / `ossinsight` / `github_api`），可随时改后端，无需改代码
+- `TRENDING_POOL_SIZE`：每周候选池大小（默认 20）
+- `TRENDING_VERIFY_INTERVAL`：抓取-校验节奏间隔天数（默认 2，即每 2 天重新抓一次并 diff）
+- `AI_TOPICS_WHITELIST` / `TRUSTED_ORGS`：来源策展白名单（定义"什么是 AI"的边界，改这两个即改编辑口径）
 
 ## 日报类型（两种模式，默认 AI 日报）
 
@@ -52,56 +64,106 @@ metadata:
 | 触发词 | 发布日报 / StarAI日报 / 生成日报 | 发布GitHub日报 / StarAI开源日报 |
 | 输出根目录 | `{OUTPUT_ROOT}` | `{OUTPUT_ROOT_GITHUB}` |
 | 文章模板 | `references/article-prompt-ai.md` | `references/article-prompt-github.md` |
-| 固定开头 | 「欢迎来到StarAI日报，请查收今日AI圈热门动态。」 | 「欢迎来到StarAI开源日报，请查收今日GitHub热门AI项目。」 |
-| 日报气泡 | `StarAI日报，今日AI资讯` | `GitHub 日报，今日AI项目热点` |
+| 固定开头 | 「欢迎来到StarAI日报，请查收今日AI圈热门动态。」 | 「欢迎来到StarAI开源日报，本周 GitHub 热门 AI 项目已更新，请查收。」 |
 
 ## References（本 skill 自带，按需读取）
 
 | 文件 | 何时读取 |
 |------|----------|
-| `references/cover-prompt.md` | Step 2 生成封面提示词时 |
-| `references/chapter-image-spec.md` | Step 3 生成章节配图提示词时 |
+| `config.md` | **每次执行前必读**，获取路径和风格配置 |
+| `styles/cover/{COVER_STYLE}.md` | Step 2 生成封面提示词时 |
+| `styles/chapter/{CHAPTER_STYLE}.md` | Step 3 生成章节配图提示词时 |
 | `references/article-prompt-ai.md` | Step 4 生成 AI 日报文章时 |
 | `references/article-prompt-github.md` | Step 4 生成 GitHub 日报文章时 |
 | `references/title-generator.md` | Step 4 生成文章标题时 |
 | `references/copywriting-guide.md` | Step 4 优化标题和导语时 |
 | `references/troubleshooting.md` | 遇到问题时查阅 |
+| `scripts/validate_gzh_html.py` | Step 4 发布前校验 HTML 合规性时自动调用 |
+| `scripts/typeset_gzh.py` | Step 4.1.5 排版转换器：article.md → 摸鱼绿 article.html（纯片段，全内联+span leaf） |
+| `scripts/fetch_weekly_trending.py` | GitHub 日报 Step 1：多后端周榜抓取 + 抓取校验节奏 + AI 过滤（topics/组织白名单 + aihot 交叉验证），输出 raw_weekly.json |
+| `{GZH_SKILL_DIR}/references/theme-index.md` | Step 4.1.5 排版时确认主题（TYPESER=true 才需读） |
+| `{GZH_SKILL_DIR}/references/theme-{GZH_THEME}.md` | Step 4.1.5 排版时读主题专属组件库 |
+| `{GZH_SKILL_DIR}/references/common-components.md` | Step 4.1.5 排版时读通用组件库 |
+| `{GZH_SKILL_DIR}/scripts/validate_gzh_html.py` | Step 4.1.5 排版后校验产物合规性 |
+| `{GZH_SKILL_DIR}/scripts/embed_images_for_copy.py` | Step 4.1.5 可选：生成含图片版预览页供手动复制 |
 
 ---
 
-## 5 条铁律（触发本技能时必须遵守）
+## 5 条铁律
 
-1. **端到端流程**：4 步必须全部执行。用户说"发布日报"就是要发布到微信公众号，不是只生成文章。
-2. **禁止把文章正文贴到对话回复里**：文章保存为 `article.md` 文件，通过发布工具上传。对话回复只返回 media_id 和发布报告。
-3. **禁止询问用户"是否要发布"**：用户说"发布日报"就已确认发布意图。信息源询问（Step 1）不是发布确认。
-4. **用批量脚本一次性生图**：禁止逐张循环（浏览器反复开关），必须一次性批量生成。
-5. **完成后返回 media_id**：发布成功后返回 media_id + 草稿箱链接。
+1. **端到端流程**：4 步必须全部执行。用户说"发布日报"/定时任务触发 = 必须发布到微信公众号草稿箱。
+2. **禁止把文章正文贴到对话/飞书回复里**：文章保存为 `article.md`，通过发布工具上传。
+3. **禁止询问用户"是否要发布"**：触发即确认发布。
+4. **用批量脚本一次性生图**：禁止逐张循环，必须一次性 `doubao_batch.js`。
+5. **完成后返回 media_id**：无 media_id = 失败，禁止报成功。
+6. **豆包同一对话框生图**：封面+章节图必须在**同一个豆包会话**里连续生成；禁止每张图新开对话/新标签/反复打开 create-image。
 
-## 失败模式自检（每次执行前过一遍）
+## 无人值守 / 定时任务模式（强制）
 
-- ❌ 把文章正文作为对话回复 = 失败
-- ❌ 只生成图片不发布 = 失败
-- ❌ 询问用户"是否要发布" = 失败
-- ❌ 描述发布流程但不执行命令 = 失败
-- ❌ 用单图脚本循环生成每张图片 = 失败
-- ✅ 调用发布工具返回 media_id = 成功
-- ✅ 用批量脚本一次生成所有图片 = 成功
+当触发来源为 **cron / 定时任务 / 自动发布**，或指令含「禁止询问」「无人值守」时：
 
----
+1. **禁止向用户提问**（信息源、是否发布、风格选择全部跳过）
+2. 信息源固定读 `config.md`：`AI_DAILY_SOURCE` / `GITHUB_DAILY_SOURCE`（默认 A）；忽略 `FIRST_RUN`
+3. 生图**只**用 `{DOUBAO_BATCH}`（同一对话框）；**禁止** for 循环调用 `{DOUBAO_GEN}`
+4. 部分失败：改 `_batch_config` 后**再跑一遍 batch**（已成功文件会 skip，会话 URL 续聊）；禁止改用多次 gen 新开会话
+5. 必须执行：`node {PUBLISH_TOOL} ...`，成功条件为目录下出现 `publish_result.json` 且含 `media_id`
+6. 对外只回报：模式 + 标题 + media_id + 草稿箱链接；失败只报错误原因与已完成步骤
+7. **禁止**使用已删除的 `starai-daily` / `starai-github-daily` / `starai-daily-publish` 路径
+
+### 完成定义（缺一不可）
+
+| 检查项 | AI 日报 | GitHub 日报 |
+|--------|---------|-------------|
+| 数据文件 | `raw_daily.json` | `raw_weekly.json` |
+| 封面 | `cover.png` | `cover.png` |
+| 文章 | `article.md` | `article.md` |
+| 排版（TYPESER=true） | `article.html` | `article.html` |
+| 发布凭证 | `publish_result.json` 含 media_id | 同左 |
+| counter | `last_ai_publish_date` 为今日 | `last_github_publish_date` 为今日 |
+
+
+## 绝对禁止（会导致 cron 假成功 / 失败）
+
+1. **禁止**用 PowerShell `Get-Content` / `ConvertFrom-Json` / `Invoke-RestMethod` 读写 JSON 或抓 aihot
+2. **禁止**只用分析报告结束任务（飞书发 analysis_*.md 不算完成）
+3. **禁止**在没有 `publish_result.json` + `media_id` 时说「发布成功」
+4. **禁止** `toISOString().slice(0,10)` 当目录日期；用本地日期或 `scripts/fetch_ai_daily.js`
+5. JSON/API **只用 Node.js**：`node scripts/fetch_ai_daily.js "{目录}"`
+
+6. **禁止** `Get-Process msedge` / `Stop-Process -Name msedge` / `taskkill /im msedge.exe`
+   （会杀用户浏览器 → Playwright 页关闭 → 生图全失败 → cron 报错）
+7. 浏览器**只**由 `doubao_batch.js` / `doubao_gen.js` 管理；脚本内部只会结束 **EdgeProfile** 相关进程，agent 不要自己管浏览器
+8. **禁止**对每张图单独 `node doubao_gen.js`（每跑一次可能新开豆包历史会话）；多图/补图统一 `doubao_batch.js`
+9. **禁止**在豆包页面「生成完就关对话框再开新窗口」；同一日报目录内会话锚点为 `_doubao_chat_url.txt`
+
+## 发布后强制验收
+
+```powershell
+node D:\OpenClaw\ai-daily-skill\scripts\verify_publish.js "{日期目录}"
+```
+
+exit code != 0 = **整次任务失败**。
 
 ## 生图脚本说明
 
-**批量生图脚本（{DOUBAO_BATCH}）自己管理浏览器**：它用 `launchPersistentContext` 启动独立的 EdgeProfile，**不需要检查或手动启动 9222 调试端口**。
+### 同一对话框铁律（用户硬性要求）
 
-agent 不需要做任何浏览器准备工作。直接写好 `_batch_config.json` 然后执行批量生图命令即可。脚本会自动：
-- 检查 EdgeProfile 登录态（Cookies 文件是否存在且 > 10KB）
-- 关闭已运行的 EdgeProfile Edge 进程
-- 用 `launchPersistentContext` 启动新的 Edge 实例
-- 打开豆包图像生成页并在同一对话中连续生成所有图片
+| 正确 | 错误 |
+|------|------|
+| 一次 `doubao_batch.js`，同一会话连续输入多条提示词 | 每张图跑一次 `doubao_gen.js` |
+| 失败后**再跑同一 batch**（skip 已成功 + 读 `_doubao_chat_url.txt` 续聊） | 生成完关窗口，再开 create-image 新会话 |
+| 会话锚点：`{日期目录}/_doubao_chat_url.txt` | 历史对话刷屏 |
+
+**批量生图脚本（`{DOUBAO_BATCH}`）自己管理浏览器**：`launchPersistentContext` + EdgeProfile，**不需要 9222**。整批只进入**一个**豆包对话。
+
+agent 不需要做任何浏览器准备工作。写好 `_batch_config.json` 后只执行一次 batch。
 
 **如果 EdgeProfile 未登录**（脚本会报错提示），需要手动登录一次：
-`Start-Process {EDGE_PATH} -ArgumentList --user-data-dir=D:\\OpenClaw\\EdgeProfile, https://www.doubao.com/chat`
-登录 doubao.com 后关闭 Edge，之后再跑生图命令即可。
+`Start-Process "{EDGE_PATH}" -ArgumentList "--user-data-dir={EDGE_PROFILE}", "https://www.doubao.com/chat"`
+
+批量脚本默认读取 `ai-daily-skill/config.md`，也可用 `--config-md <路径>`。
+
+`{DOUBAO_GEN}` **仅**在 batch 无法修复的极端情况补 **1** 张，且必须与 batch 共用输出目录（自动读 `_doubao_chat_url.txt` 续聊）。
 
 ---
 
@@ -109,83 +171,52 @@ agent 不需要做任何浏览器准备工作。直接写好 `_batch_config.json
 
 ### Step 1: 找新闻（信息源决策）
 
-**判断逻辑**：先检查用户指令中是否已包含信息源描述，有则跳过询问直接执行，无则向用户询问。
+**判断逻辑**（按优先级）：
+
+1. **定时/无人值守** → 直接用 `config.md` 的 `AI_DAILY_SOURCE`（默认 A），**禁止询问**
+2. 用户指令已指定信息源 → 按指令执行
+3. 仅当**交互会话**且 `FIRST_RUN=true` 时，可提示一次信息源选项，但**不得阻塞**：立即用默认 A 继续
 
 #### 1A. 检查指令中是否已指定信息源
 
 如果用户的触发指令中已经明确说了信息源方式或搜索内容，**直接跳过询问，按指令中指定的方式执行**。识别规则：
 
-- 提到 API 名称或 URL（如 aihot、aihot.virxact.com、/api/public/daily）-> 方式 A（公开 API）
-- 提到网页搜索、web search、GitHub Trending、搜一下 -> 方式 B（网页搜索）
+- 提到 API 名称或 URL（如 aihot、aihot.virxact.com）-> 方式 A（公开 API）
+- 提到网页搜索、web search、GitHub Trending -> 方式 B（网页搜索）
 - 直接贴了新闻/事件文本 -> 方式 C（手动输入）
-- 提到用我的 API、用这个命令、跑这个 URL -> 方式 D（自定义）
-- 指令里带了主题/关键词/领域（如只看模型发布、编程工具相关）-> 作为 Q2 的答案
+- 提到用我的 API、用这个命令 -> 方式 D（自定义）
+- 指令里带了主题/关键词/领域 -> 作为搜索范围
 
-**示例**：
-- 用 aihot 公开 API 抓取今天的数据，发布今天的 StarAI 日报 -> 方式 A，Q2 用默认
-- 发布今天的 StarAI 日报，信息源用公开 API，搜索今天 AI 圈热门新闻 -> 方式 A，Q2 已指定
-- 发布 GitHub 日报，用网页搜索搜今日 AI 开源项目 -> 方式 B，Q2 已指定
+#### 1B. 交互会话且 FIRST_RUN=true（可选提示，不阻塞）
 
-#### 1B. 指令中未指定信息源时，向用户询问
-
-如果用户只说了发布日报而没说信息源，用 request_user_input 工具或自然语言询问两个问题：
-
-**Q1：信息获取方式**
-- A. 公开 API（如 aihot.virxact.com/api/public/daily）- 自动抓取，无需登录
-- B. 网页搜索（web_search / WebFetch）- 通用，可搜任意关键词
-- C. 手动输入热点列表 - 用户直接贴新闻/事件文本
-- D. 自定义 API/命令 - 用户提供自己的数据源 URL 或命令
-
-**Q2：搜索什么信息**（自由文本）
-- 询问用户想覆盖的主题/关键词/领域/时间范围
-- AI 日报默认示例：今天 AI 圈的热门新闻、模型发布、工具更新
-- GitHub 日报默认示例：今日 GitHub 上与 AI/LLM/agent/编程工具相关的热门项目
-- 用户可以指定更聚焦的范围，如：只看中国 AI 公司的动态 / 只看编程工具相关
+可展示信息源选项供下次生效，**本次仍立即用 config 默认值执行**。定时任务永不走此分支。
 
 #### 1C. 执行抓取
 
 **方式 A：公开 API**
 
 ```powershell
-# 1. 创建当日目录
 $date = Get-Date -Format "yyyy-MM-dd"
-$dir = "{OUTPUT_ROOT}\$date"   # GitHub日报用 {OUTPUT_ROOT_GITHUB}
+$dir = "{OUTPUT_ROOT}\$date"
 New-Item -ItemType Directory -Force -Path $dir | Out-Null
-
-# 2. 抓取数据（必须用 Node.js，PowerShell 会中文乱码）
-node -e "const https=require('https');const fs=require('fs');https.get({hostname:'aihot.virxact.com',path:'/api/public/daily',headers:{'User-Agent':'Mozilla/5.0 aihot-skill/0.2.0'}},r=>{let d='';r.on('data',c=>d+=c);r.on('end',()=>{fs.writeFileSync(process.argv[1]+'/raw_daily.json',d);console.log('data len:'+d.length);const j=JSON.parse(d);console.log('Date:'+j.date);console.log('Sections:'+j.sections.map(s=>s.label+':'+s.items.length).join(', '));})}).on('error',e=>console.error(e.message));" "$($dir -replace '\\','/')"
+node D:\OpenClaw\ai-daily-skill\scripts\fetch_ai_daily.js \"$dir\"
 ```
 
-**方式 B：网页搜索**
+**方式 B/C/D**：按用户选择的方式抓取，整理为统一 JSON 结构保存。
 
-使用 web_search 工具按用户给的关键词搜索，然后用 WebFetch 抓取具体页面内容。整理筛选后保存为 `{dir}/raw_topics.json`，结构同下。
+#### 1E. GitHub 日报：固定走周榜抓取（不走上面的信息源选择）
 
-**方式 C：手动输入**
-
-读取用户贴入的热点/事件文本，整理为统一 JSON 结构保存为 `{dir}/raw_topics.json`。
-
-**方式 D：自定义 API/命令**
-
-按用户提供的 URL 或命令执行，保存原始响应到 `{dir}/raw_daily.json` 或 `raw_topics.json`。
-
-**统一数据结构**（方式 B/C/D 整理时应遵循）：
-
-```json
-{
-  "date": "2026-07-10",
-  "sections": [
-    { "label": "头条", "items": [{ "title": "...", "summary": "...", "url": "..." }] }
-  ]
-}
-```
-
-**目录清理（可选）**：创建新目录后调用清理脚本（仅在目录总数达 14 个时才真正删除最早的 7 个）：
+GitHub 日报的数据源固定为 **GitHub 周榜（按本周新增 Star 排名）**，无需询问用户信息源，直接运行抓取脚本：
 
 ```powershell
-node {CLEANUP_TOOL}
+python scripts/fetch_weekly_trending.py "{日期目录}" --force
 ```
 
-若清理脚本不存在则跳过，不阻塞流程。
+脚本自动完成：多后端抓取（默认 `html_fallback`）→ aihot 公开 API 交叉验证 → AI 过滤（GitHub topics 白名单 + 可信组织名单）→ 抓取-校验节奏（每 `TRENDING_VERIFY_INTERVAL` 天重抓并 diff，无变化沿用旧池）→ 输出 `{日期目录}/raw_weekly.json`（本周候选池，含 `weekly_stars` / `total_stars` / `ai_relevant`）。
+
+**输出物**：`{日期目录}/raw_weekly.json`
+
+> 后端可随时切换：改 `config.md` 的 `TRENDING_BACKEND` 即可在 `html_fallback` / `ossinsight` / `github_api` 间切换，无需改代码（"随时变动 API"）。
 
 **输出物**：`{日期目录}/raw_daily.json` 或 `raw_topics.json`
 
@@ -195,30 +226,25 @@ node {CLEANUP_TOOL}
 
 #### 2.1 生图脚本自管理浏览器
 
-批量生图脚本（`{DOUBAO_BATCH}`）会自己启动和管理 Edge 浏览器（用独立的 EdgeProfile），**agent 不需要检查端口或手动启动 Edge**。直接进入 2.2 生成提示词即可。
+批量生图脚本会自己启动和管理 Edge 浏览器，**agent 不需要检查端口或手动启动 Edge**。
 
 #### 2.2 生成封面提示词
 
-1. **读取** `references/cover-prompt.md` 获取完整的暗黑泼墨标题封面生成指令
-2. 从 Step 1 的数据中提取核心事件、用户价值、风险/提示
-3. 按指令中的标题生成规则生成 3 组标题（主标题+副标题+强调词），随机选 1 组
-4. 从指令中的各随机池（背景样式、人物全维度、文字视觉、装饰元素）独立抽取参数
-5. 根据日报类型选择右上角固定气泡文案（AI日报 / GitHub日报）
-6. 组装成完整的中文生图 prompt，按指令中的校验规则自检
-7. 文件名固定为 `cover`，type 为 `"cover"`
-
-**封面风格**：暗黑泼墨标题（右人物辅助 + 左标题核心，电影黑场质感）。**章节配图不能用此风格，必须用酸性野兽派。两种风格不可混用。**
+1. **读取 `config.md`** 获取 `COVER_STYLE` 的值
+2. **读取 `styles/cover/{COVER_STYLE}.md`** 获取封面风格指令
+3. 从 Step 1 的数据中提取核心事件、用户价值、风险/提示
+4. 按风格指令中的规则生成标题、从随机池抽取参数
+5. 组装成完整的中文生图 prompt
+6. 文件名固定为 `cover`，type 为 `"cover"`
 
 #### 2.3 写入封面配置
-
-封面图的配置先单独准备好（Step 3 会和章节配图一起写入完整批量配置并一次性生成）：
 
 ```json
 {
   "name": "cover",
   "event": "封面 - [文章主标题]",
   "type": "cover",
-  "prompt": "[按 cover-prompt.md 生成的完整中文提示词]"
+  "prompt": "[按封面风格文件生成的完整中文提示词]"
 }
 ```
 
@@ -228,91 +254,35 @@ node {CLEANUP_TOOL}
 
 #### 3.1 生成章节配图提示词
 
-1. **读取** `references/chapter-image-spec.md` 获取酸性野兽派章节配图规范
-2. 为**每个事件**（包括「今日之星」「重点推荐」「值得关注」所有板块）生成章节配图提示词：
-   - 根据 4 种内容图类型选择之一（事件/过程、人物/产品、数据/对比、场景/概念）
-   - 按 chapter-image-spec.md 中的 Prompt 模板填充占位符
-   - 文件命名：`{主题关键词}.png`（如 `grok45.png`、`gpt_live.png`）
-
-**酸性野兽派风格核心语汇**（仅用于章节配图）：
-- 背景：粗野厚涂色块拼贴、撕裂锯齿边缘、马克笔涂鸦笔触
-- 核心主体：图像主导（流程图/概念图/数据图），文字仅 1-2 个关键词点睛
-- 装饰元素简化为 2 种：半色调圆点贴纸 + 错版印刷重影
-- 配色与封面同色系但降低饱和度 30%
-- **画面中不出现任何人物**
+1. **读取 `config.md`** 获取 `CHAPTER_STYLE` 的值
+2. **读取 `styles/chapter/{CHAPTER_STYLE}.md`** 获取配图风格规范
+3. 为文章里的每个深度项目生成章节配图提示词（AI 日报约 6-7 个；**GitHub 日报只给 2-3 个本周之星深拆项目各配一张，不按 Top 10 全配**）
+4. 按风格文件中的 Prompt 模板填充占位符
+5. 文件命名：`{主题关键词}.png`
 
 #### 3.2 写入完整批量配置
 
-将封面 + 所有章节配图合并写入 `_batch_config.json`：
+将封面 + 所有章节配图合并写入 `_batch_config.json`。
 
-```json
-[
-  {
-    "name": "cover",
-    "event": "封面 - [文章主标题]",
-    "type": "cover",
-    "prompt": "[封面提示词]"
-  },
-  {
-    "name": "grok45",
-    "event": "Grok 4.5 发布",
-    "type": "chapter",
-    "prompt": "[章节配图提示词1]"
-  },
-  {
-    "name": "gpt_live",
-    "event": "OpenAI GPT-Live 语音模型",
-    "type": "chapter",
-    "prompt": "[章节配图提示词2]"
-  }
-]
-```
-
-#### 3.3 执行批量生图
+#### 3.3 执行批量生图（同一对话框，只跑这一条命令）
 
 ```powershell
 $env:NODE_PATH = "{NODE_MODULES}"
-
-# 批量生图（启动一次浏览器，在同一豆包对话中生成所有图片）
 node {DOUBAO_BATCH} --config "{日期目录}\_batch_config.json" --output "{日期目录}"
 ```
 
-脚本行为：
-- 启动 Edge 浏览器一次（已登录豆包）
-- 在同一豆包对话中连续输入每个提示词
-- 每张图保存为 `{name}.png`
-- 断点续传：已存在的文件自动跳过
-- 完成后自动生成 `_image_manifest.json` 清单
+> 脚本会在输出目录写入 `_doubao_chat_url.txt`。部分失败时**不要**改用多次 `doubao_gen`；再次执行上面同一命令即可（已成功文件 skip，失败项在同一会话续聊）。
 
 #### 3.4 验证图片清单
 
-> **豆包生图机制**：豆包每次提示词会生成4张候选图，脚本自动收集所有4张请求的响应体，选择最大的一张保存。正常原图大小为 3-8 MB，低于 500 KB 的视为缩略图，脚本会自动跳过。
+> **豆包生图机制**：每次提示词约 4 张候选，脚本取最大一张；正常 3–8 MB，&lt;500KB 视为失败。
 
 **验证要求**：
-- 所有图片状态为 success
-- 每张图片 size_mb >= 0.5（即 >= 500 KB）
-- 配图数量 = 事件总数（每个事件一张配图 + 1张封面）
-- 如有图片 < 0.5 MB 或状态为 failed，必须用单图脚本补生成
+- 所有图片 status 为 success 或 skipped
+- 每张 size_mb &gt;= 0.5
+- 数量 = 封面 1 + 章节 N
 
-读取 `_image_manifest.json` 确认所有图片状态：
-
-```json
-{
-  "date": "2026-07-10",
-  "total": 7,
-  "images": [
-    { "filename": "cover.png", "type": "cover", "status": "success", "size_mb": 6.5 },
-    { "filename": "grok45.png", "type": "chapter", "status": "success", "size_mb": 6.9 }
-  ]
-}
-```
-
-如有失败的图片，用单图脚本补生成：
-
-```powershell
-node {DOUBAO_GEN} --prompt "[失败图片的提示词]" --output "{日期目录}"
-# 然后重命名生成的文件为正确的文件名
-```
+读取 `_image_manifest.json`。失败则**只重跑 batch**，禁止循环 `doubao_gen.js`。
 
 ---
 
@@ -320,212 +290,227 @@ node {DOUBAO_GEN} --prompt "[失败图片的提示词]" --output "{日期目录}
 
 #### 4.1 写文章
 
-1. **读取** 对应日期类型的文章模板（`references/article-prompt-ai.md` 或 `references/article-prompt-github.md`）
-2. 将 Step 1 数据 + 深度分析结果替换模板中的占位符，生成文章
-3. **读取** `references/title-generator.md` 生成 5 条候选标题
-4. **读取** `references/copywriting-guide.md` 优化标题和导语（AIDA 评分选最佳标题）
+1. **读取** 对应的文章模板（`references/article-prompt-ai.md` 或 `article-prompt-github.md`）
+2. 将 Step 1 数据替换模板中的占位符，生成文章
+3. **读取** `references/title-generator.md` 生成候选标题
+4. **读取** `references/copywriting-guide.md` 优化标题和导语
 5. 保存为 `{日期目录}/article.md`
 
-**文章 frontmatter**：
+**文章 frontmatter**：title（不超过20字）、author、description（120字以内）
 
-```yaml
----
-title: [不超过20字，只讲一件事，悬念结尾]
-author: Star_Ai
-description: [120字以内的摘要]
----
-```
+**标题铁律**：不超过 20 字，一条标题只聚焦一个新闻点，最后 3-5 字制造悬念，禁用"炸了""重磅"等失效词。
 
-**标题铁律**：
-- 不超过 20 个字（微信信息流完整显示）
-- 一条标题只聚焦一个新闻点
-- 最后 3-5 字制造悬念
-- 禁用"炸了""重磅""变天了""火力全开"等失效词
+**去 AI 味铁律**：禁用"值得注意的是""综上所述"，禁用 emoji，禁用话题标签。
 
-**去 AI 味铁律**：
-- 禁用"值得注意的是""综上所述""让我们来看看"
-- 禁用 emoji（语音播报读不出）
-- 禁用"写在最后"作为结尾标题
-- 禁用话题标签（#xxx）
+**写作风格**：B站科技UP主风格，口语化连接词，中国化比喻，短句为主，全文 3000-5000 字。
 
-**写作风格**：
-- B站科技UP主风格，像聊天一样写
-- 口语化连接词："那说实话呢""就是说""说白了""讲真"
-- 中国化比喻（小米、华为、比亚迪、大疆等中国品牌）
-- 短句为主，每句不超过 25 字
-- 全文 3000-5000 字
+**图片引用规则**：先读取 `_image_manifest.json`，按清单中的 filename 引用图片，只引用 `status: "success"` 的图片。
 
-**图片引用规则**：
-- **先读取 `_image_manifest.json` 清单**，按清单中的 filename 引用图片
-- 引用路径与清单中的 filename 完全一致（大小写敏感）
-- 封面图引用放在文章最前面：`![封面](cover.png)`
-- 只引用 `status: "success"` 或 `status: "skipped"` 的图片
-- 引用格式：`![描述](grok45.png)`
+#### 4.1.5 排版（gzh-design-skill 精致排版）【可选，由 config.md 的 TYPESER 控制】
+
+> 此步骤将 md-to-wechat 的"基础渲染"升级为 gzh-design-skill 的"精致排版"（封面卡 + 目录 + 引言卡 + 章节编号 + 关键词下划线 + 三连 CTA）。产物为纯片段 `article.html`，直接喂给发布工具（wechat-api.ts 原生支持 .html 输入，会自动上传 HTML 里的图片）。
+
+**触发条件**：`config.md` 中 `TYPESER` 为 `true` 且 `{GZH_SKILL_DIR}` 指向的 gzh-design-skill 已安装。否则跳过本步骤，直接用 `article.md` 发布（回退到 md-to-wechat 基础渲染）。
+
+**执行步骤**：
+
+1. **读取主题索引**：读 `{GZH_SKILL_DIR}/references/theme-index.md`，确认 `config.md` 中 `GZH_THEME` 对应的主题（默认 `moyu-green` 摸鱼绿）。AI 日报属"盘点/工具清单"类，默认即摸鱼绿。
+2. **读取组件库**：读 `{GZH_SKILL_DIR}/references/theme-{GZH_THEME}.md`（主题专属组件库）+ `{GZH_SKILL_DIR}/references/common-components.md`（通用组件库）。
+3. **排版生成纯片段 `article.html`**：调用本 skill 自带转换器（已严格按摸鱼绿组件库实现，避免每次手敲）：
+   ```bash
+   python scripts/typeset_gzh.py "{日期目录}/article.md" "{日期目录}/article.html" --date YYYY.MM.DD --brand "StarAI开源日报"
+   ```
+   转换器自动产出：封面卡 + 横向目录 + 引言卡 + PART 0X 章节编号 + 关键词绿色加粗/下划线 + 结尾三连 CTA，并**必须**满足以下硬约束：
+   - **纯片段结构**：从 `<section style="...">` 开始，禁止包含 `<html>/<head>/<body>`、toolbar、复制按钮、`<script>`（那些是预览页的事，发布工具会原样提取 body 内容，混入 UI 元素会污染文章）。
+   - **全内联样式**：所有样式写在 `style=""` 属性内，禁止 `<style>/<class>/<div class>/grid/position:fixed` 等公众号禁用的写法。
+   - **span leaf 包裹**：每个文字节点用 `<span leaf="">文字</span>` 包裹（公众号编辑器兼容性要求）。
+   - **图片相对路径**：沿用 article.md 的图片文件名（如 `apple_openai.png`、`cover.png`），生成 `<img src="apple_openai.png" style="...">`，禁止改文件名、禁止用绝对路径。
+   - **必备组件**：封面卡（含日期/标题/摘要）、横向目录导航、开头引言卡、PART 01–08 章节编号、每段 1–3 个关键词下划线、结尾三连 CTA（点赞/在看/转发）。**今日速览胶囊为条件渲染**：仅当文章含「今日速览」段落（AI 日报）才输出；GitHub 日报用【本周 GitHub 热榜 Top 10】排名榜（有序列表组件）承担速览职能，不渲染今日速览胶囊。
+   - **中文全角**：正文标点自动全角，代码块内原样保留。
+4. **合规校验**（路径必须加引号，禁止把 `\` 吃掉）：
+   ```powershell
+   python "D:\OpenClaw\ai-daily-skill\scripts\validate_gzh_html.py" "{日期目录}\article.html"
+   ```
+   或：`python "{GZH_SKILL_DIR}\scripts\validate_gzh_html.py" "{日期目录}\article.html"`  
+   **0 ERROR 才继续**；有 ERROR 则修复后重试。也可跳过本步，交给 `publish_article.js` 内置校验。
+5. **生成含图片版预览页（手动复制用，可选）**：若用户可能手动复制粘贴，调用 `{GZH_SKILL_DIR}/scripts/embed_images_for_copy.py` 把图片 base64 内嵌，生成 `{日期目录}/article_排版_预览(含图片).html`，供用户点"复制到公众号"按钮手动粘贴（自动 API 发布不需要此文件）。
+
+**排版检查清单**（生成后逐项核对）：
+- [ ] 封面卡存在且信息正确
+- [ ] 目录导航列出所有章节
+- [ ] 引言卡存在（GitHub 日报无今日速览胶囊，以 Top 10 榜单代替）
+- [ ] 每个章节有 PART 0X 编号
+- [ ] 每段有下划线关键词
+- [ ] 结尾三连 CTA 存在
+- [ ] 所有图片 src 为相对路径且文件存在
+- [ ] 无 `<style>/<class>/grid/position:fixed`
+- [ ] validate_gzh_html.py 输出 0 ERROR
 
 #### 4.2 发布到微信公众号
 
-**这一步必须实际执行发布命令，不能只描述流程，不能询问用户，不能把文章内容贴到对话里。**
-
-调用发布工具：
+发布工具会自动执行 HTML 合规校验（dry-run 预检 -> validate_gzh_html.py -> 正式发布）。如需跳过校验强制发布，加 `--skip-validate` 参数。
 
 ```powershell
 node {PUBLISH_TOOL} "{日期目录}\article.md" "{日期目录}\cover.png" "news"
 ```
 
+> **排版接入说明**：若 Step 4.1.5 已生成 `article.html`，发布工具会**自动优先使用 `article.html`**（跳过 md-to-wechat 基础渲染），并把 HTML 里的相对路径图片（如 `apple_openai.png`）上传到微信。命令参数不变，仍传 `article.md` 作为主参数（工具内部判断 article.html 是否存在）。若 `article.html` 不存在，回退到 `article.md` + md-to-wechat 渲染。
+
 GitHub 日报将第三个参数改为 `"github"`。
 
-工具行为：
-- 自动读取 frontmatter（title、description）
-- 自动执行 `bun scripts/wechat-api.ts` 发布命令
-- 自动解析并返回 media_id
-- 成功后自动更新 counter.json
-
-**绝对禁止**：
-- ❌ 调发布工具之后再次写一份 bun 命令
-- ❌ 把文章内容作为对话回复发给用户
-- ❌ 描述发布流程但不调用工具
-- ❌ 询问用户"是否要发布"
-
-**如果调工具失败**：
-- 重试一次
-- 仍然失败则把失败信息告诉用户（包含具体错误），但不输出文章正文到对话
-
-**CVE 安全注意**（开源相关）：
-- 微信 API 凭证（app_id / app_secret）通过外部脚本的环境变量或 .env 文件读取，**不写入本 skill**
-- 本 skill 不存任何凭证，开源仓库不应包含 .env 文件
+**安全注意**：微信 API 凭证通过外部 .env 文件读取，不写入本 skill。
 
 #### 4.3 清理旧目录
-
-发布成功后立即清理：
 
 ```powershell
 node {CLEANUP_TOOL}
 ```
 
-清理规则：监控两个输出目录，累计达 14 个日期目录时删除最早的 7 个，保留最近的 7 个。今天的目录永远保留。未达阈值时静默执行。若脚本不存在则跳过。
+#### 4.4 向用户报告（成功/失败模板强制）
 
-#### 4.4 向用户报告
+1. **强制验收**：`node D:\OpenClaw\ai-daily-skill\scripts\verify_publish.js "{日期目录}"`
+2. **唯一成功标准**：`verify_publish` exit 0 且 `publish_result.json` 含 `media_id`
+3. 中间步骤（如单独跑 validate_gzh）失败但最终 publish+verify 成功 → **必须报成功**，禁止把中间错误当最终失败
+4. **禁止**返回文章正文
 
-发布成功后返回验证报告（不返回文章正文）：
+**成功时必须按下面格式回复（缺一不可）**：
 
+```text
+✅ StarAI {AI日报|GitHub开源日报} 发布成功
+标题：{title}
+发布时间：{localDate} {HH:mm}（本地）
+media_id：{media_id}
+草稿箱：https://mp.weixin.qq.com
+查看路径：内容管理 → 草稿箱 → 用标题搜索
 ```
-AI日报发布完成
 
-发布信息：
-  日期: [YYYY-MM-DD]
-  标题: [文章标题]
-  作者: Star_Ai
-  字数: [N] 字
-  封面: cover.png ([大小] MB)
-  章节配图: [N] 张
+**失败时**：
 
-文件位置：
-  文章: [日期目录]\article.md
-  配图: [日期目录]\*.png
-
-微信公众号：
-  media_id: [media_id]
-  草稿箱: https://mp.weixin.qq.com (内容管理 → 草稿箱)
-
-下一步：在微信公众号后台确认无误后，手动点击"发布"
+```text
+❌ StarAI {模式} 发布失败
+原因：{一句话}
+已完成：{步骤列表}
+目录：{日期目录}
 ```
+
+> HTML 校验优先用：`python "D:\OpenClaw\ai-daily-skill\scripts\validate_gzh_html.py" "article.html"`  
+> 路径必须带引号与反斜杠；`publish_article.js` 内已含校验，**可不单独再跑** validate。
 
 ---
 
 ## 测试模式（不真实发布）
-
-如需验证发布流程但不实际推送到微信，使用 wechat-api.ts 的 --dry-run 参数：
 
 ```powershell
 cd {WECHAT_DIR}
 bun scripts/wechat-api.ts "{日期目录}\article.md" --theme modern --color blue --author "Star_Ai" --summary "测试摘要" --cover "{日期目录}\cover.png" --no-cite --dry-run
 ```
 
---dry-run 模式只解析和渲染文章，不调用微信 API，不产生草稿。
-
 ---
 
-## 使用示例
+## 风格自定义指南
 
-### 完整自动化执行
+### 方式一：选择内置风格
 
-用户说："发布今天的 StarAI 日报"
+1. 浏览 `styles/cover/` 和 `styles/chapter/` 目录下的 .md 文件
+2. 打开每个文件看风格特点和适用场景
+3. 在 `config.md` 中填写 `COVER_STYLE` 和 `CHAPTER_STYLE`
 
-执行流程：
-1. 询问用户信息源（方式+关键词）→ 按选择抓取 → `raw_daily.json` + 创建日期目录
-2. 读取 cover-prompt.md 生成封面提示词
-3. 读取 chapter-image-spec.md 为每个热点生成配图提示词 → 合并写入 _batch_config.json → 批量脚本一次性生成 → 验证 _image_manifest.json
-4. 读取 article-prompt-ai.md 写 article.md → 调发布工具 → 返回 media_id
+### 方式二：手动创建自定义风格
 
-### GitHub 日报执行
+1. 复制 `styles/cover/` 或 `styles/chapter/` 下的任意一个文件
+2. 改个名字（如 `my-style.md`）
+3. 修改文件内容中的风格规则（配色、字体、背景、装饰等）
+4. 在 `config.md` 中填入你的风格文件名（不含扩展名）
 
-用户说："发布 GitHub 日报"
+### 方式三：AI 生成风格（推荐）
 
-同上流程，数据源按用户选择的方式抓取 GitHub 相关内容，输出目录改为 `{OUTPUT_ROOT_GITHUB}`。
+用一句话描述你想要的风格，让 AI 自动生成一套风格文件：
 
-### 仅生成文章不发布
+> "帮我生成一套赛博朋克风格的封面风格，主色用霓虹紫，要有故障艺术效果"
 
-用户说："生成今天的日报文章，先不要发布"
+AI 会：
+1. 根据你的描述生成完整的风格文件（包含配色方案、装饰元素池、Prompt 模板）
+2. 保存到 `styles/cover/` 或 `styles/chapter/` 目录
+3. 自动在 `config.md` 中更新对应的风格字段
 
-执行 Step 1-4.1，跳过 4.2-4.4。
+**风格描述参考**：
+- 配色方向：主色 + 辅色 + 背景色（如"主色用薄荷绿，辅色用暖橙，白色背景"）
+- 视觉风格：极简/杂志/手绘/科技/赛博/水彩/油画/扁平
+- 氛围感：干净/活泼/沉稳/未来感/温暖
+- 参考品牌：像 Apple 官网/像小米海报/像抖音风格
 
-### 仅发布已有文章
+### 风格文件结构
 
-用户说："发布昨天生成好的日报"
-
-跳过 Step 1-3，直接执行 Step 4.2-4.4，指定 article.md 路径。
+每个风格文件应包含：
+- 基础固定规则（画面比例、整体氛围）
+- 标题生成规则（字体、色彩方案）
+- 背景/装饰元素随机池
+- Prompt 模板或组装规则
+- 最终校验规则
 
 ---
 
 ## 故障排除
 
-详细故障排除见 `references/troubleshooting.md`。常见问题：
-
-| 问题 | 解决方案 |
-|------|----------|
-| API 返回 403 | 必须带浏览器 User-Agent |
-| 数据中文乱码 | 必须用 Node.js 而非 PowerShell 的 Invoke-RestMethod |
-| EdgeProfile 未登录 | 手动用 EdgeProfile 启动 Edge 登录 doubao.com 一次 |
-| 豆包未登录 | 在 Edge 中手动登录 doubao.com |
-| 配图生成超时 | 等待更长时间（最多 120 秒），或跳过配图 |
-| 图片是缩略图 | 走"下载原图"流程获取原图 |
-| 标题超 64 字节 | 缩短标题（约 20 个中文字符） |
-| 图片文件不存在 | 文章引用了未生成的图片，需补生成或删除引用 |
-| API 凭证缺失 | 在外部 wechat-api.ts 的 .env 中配置，不在本 skill 内 |
-
----
-
-## 开源指南
-
-本 skill 可直接开源到 GitHub。注意事项：
-
-1. **不提交凭证**：`.env`、`app_secret`、`access_token` 等一律加入 .gitignore
-2. **参数化路径**：所有环境相关的路径用 `{OUTPUT_ROOT}` 等占位符，已在上方"用户配置"段落列出
-3. **外部脚本依赖**：`doubao_batch.js`、`publish_article.js`、`wechat-api.ts` 等不在本 skill 仓库内，README 中需说明获取方式，或把它们一并打包进 skill
-4. **License**：MIT（已在 frontmatter 标明）
-
-## 迭代指南
-
-本 skill 设计为可持续迭代。更新方式：
-
-1. **修改提示词模板**：直接编辑 `references/` 下对应的 .md 文件
-2. **修改文章风格**：编辑 `references/article-prompt-ai.md` 或 `article-prompt-github.md`
-3. **修改封面设计规则**：编辑 `references/cover-prompt.md`
-4. **修改配图规范**：编辑 `references/chapter-image-spec.md`
-5. **修改流程逻辑**：编辑本 SKILL.md
-6. 每次修改后在下方 CHANGELOG 记录变更
+详细故障排除见 `references/troubleshooting.md`。
 
 ## CHANGELOG
 
+### v2.5.1 (2026-07-13)
+- **成功通知模板**：标题 + 本地发布时间 + media_id + 草稿箱链接；最终以 verify_publish 为准，中间工具失败不算整单失败
+- validate 路径必须加引号：`python "D:\OpenClaw\ai-daily-skill\scripts\validate_gzh_html.py" "..."`（避免 `\` 被吞）
+- **同一对话框生图**：batch/gen 保存并复用 `_doubao_chat_url.txt`；禁止循环 doubao_gen 新开会话
+- 禁止 agent 执行 Get-Process/Stop-Process/taskkill msedge（会导致生图页被关）
+- 修 cron 假成功：强制 `verify_publish.js`；禁止 PowerShell 解析 JSON
+- 新增 `scripts/fetch_ai_daily.js`（本地日期 + Node 抓 aihot）
+- 分析报告不得作为最终产出
+
+### v2.5.0 (2026-07-13)
+- **无人值守模式**：定时/cron 禁止询问；信息源固定 config；完成定义含 `publish_result.json`
+- 废弃并移除 `starai-daily` / `starai-github-daily` / `starai-daily-publish` 旧路径；唯一入口 `ai-daily-skill`（junction：`.openclaw/skills/ai-daily`）
+- 触发词增加：定时任务 / cron / 自动发布
+- OpenClaw cron 双 job：GitHub 22:00、AI 23:30（Asia/Shanghai）
+
+### v2.4.0 (2026-07-13)
+- GitHub 日报结构最终定型（v3）：Top 20 候选池（`fetch_weekly_trending.py` 每 2 天刷新）→ 文章只列【本周 GitHub 热榜 Top 10】排名榜（一行一项目，含本周新增⭐）→ 仅对 2-3 个【本周之星】做 HomeRail 式深度拆解（带配图）→ 结尾。每日只深拆 2-3 个，读 `published_projects.json` 优先选本周未发过的项目，避免重复与信息过载
+- 移除【其余热门·中深度解读】段：未被选为本周之星的项目只在 Top 10 榜单中一句话一览，不再另开段落
+- GitHub 日报不再含「今日速览」胶囊：Top 10 榜单一览已承担速览职能，typeset_gzh.py 对 GitHub 文章自动跳过今日速览渲染（条件渲染），与 AI 日报（有今日速览）区分
+- article-prompt-github.md 同步定稿：开场白去掉今日速览、固定开头改为周榜口径、写作对标 HomeRail 范文（钩子/一句话记住/打个比方/痛点/普通人怎么用/适合谁/说句实话）、全文 3000-5000 字
+- SKILL.md 排版说明（Step 4.1.5）同步：今日速览胶囊标注为条件渲染，GitHub 日报以 Top 10 榜单代替；固定开头口径改为周榜
+
+### v2.1.0 (2026-07-12)
+- 集成 HTML 合规校验：发布前自动用 validate_gzh_html.py 检查 HTML 兼容性
+- 文章模板增加引言卡、关键词标记、章节编号、中文标点规范
+- 风格自定义增加 AI 生成风格选项（方式三）
+- publish_article.js 增加 dry-run 预检 + HTML 校验步骤
+- 校验脚本来源：gzh-design-skill (AGPL-3.0, isjiamu)
+
+### v2.2.0 (2026-07-12)
+- 接入 gzh-design-skill 精致排版：新增 Step 4.1.5，TYPESER=true 时用其组件库把 article.md 排成 article.html（封面卡/目录/引言卡/PART 编号/关键词下划线/三连 CTA），替代 md-to-wechat 基础渲染
+- **新增 `scripts/typeset_gzh.py` 转换器**：把 article.md 自动排成摸鱼绿纯片段 article.html（封面卡+目录+引言卡+今日速览胶囊+PART 章节+关键词绿色加粗+三连 CTA），全内联样式+span leaf 包裹，validate_gzh_html.py 校验 0 ERROR
+- publish_article.js 改造：优先读 article.html 发布（wechat-api.ts 原生支持 .html 输入并自动上传文中图片），否则回退 article.md
+- 新增含图片版预览页生成（embed_images_for_copy.py，base64 内嵌）供手动复制粘贴
+- config.md 新增排版配置段：GZH_SKILL_DIR / TYPESER / GZH_THEME
+
+### v2.3.0 (2026-07-13)
+- GitHub 日报数据源重构为「周榜 Top 10 by 本周新增 Star」：新增 `scripts/fetch_weekly_trending.py` 多后端可切换数据层（html_fallback 默认 / ossinsight / github_api / aihot 交叉验证）
+- 抓取-校验节奏状态机：Day1 建池 → Day2/3 复用 → 每 TRENDING_VERIFY_INTERVAL 天重抓 diff，低频（≈3次/周）化解日报+周榜矛盾
+- AI 过滤改"来源策展"思路（逆向 aihot 方法论）：GitHub topics 白名单 + 可信组织名单定义"什么是 AI"，aihot 公开 API 作交叉验证信号，LLM 编辑门（写文章阶段）剔除玩具/demo/跑题，不再靠脆弱关键词正则
+- article-prompt-github.md 重写为周榜结构：新增【本周 GitHub 热榜 Top 10】排名榜 + 【本周之星】2-3 个对标 HomeRail 深度拆解（标注本周新增⭐）；当时另含【其余热门】中深度解读段（该段已在 v2.4.0 移除，改由 Top 10 榜单一句话一览替代），每个项目展示本周新增⭐
+- typeset_gzh.py 新增有序列表（排名榜）渲染组件，兼容 Top 10 榜单
+- 发布链路不变（publish_article.js 优先 article.html），仍受公众号 IP 白名单外部门约束
+
+### v2.0.0 (2026-07-10)
+- 风格系统：封面和配图风格参数化，用户可在 config.md 中选择或自定义
+- 内置 4 套封面风格 + 4 套配图风格
+- 新增 config.md 用户配置文件
+- 新增风格自定义指南
+
 ### v1.1.0 (2026-07-10)
-- 信息源改为向用户主动询问（方式+搜索什么信息）
-- 所有本地路径参数化为 {占位符}，可安全开源到 GitHub
-- frontmatter 加 license: MIT
-- 增加开源指南段落
+- 信息源改为向用户主动询问
+- 所有本地路径参数化
+- 加 license: MIT
 
 ### v1.0.0 (2026-07-10)
 - 基于 starai-daily-publish v3.0.0 重新构建为独立 skill
-- 从外部 skill 依赖改为全部内联 references
-- 精简为 4 步工作流（找新闻 → 生成封面 → 生成配图 → 发文章+发布）
-- 安装到 `~/.codex/skills/ai-daily/`
-- 所有依赖脚本路径已验证可执行
+- 精简为 4 步工作流
