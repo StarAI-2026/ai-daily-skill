@@ -2,12 +2,13 @@
 
 将 AI 资讯 / GitHub 开源热榜自动转化为 B站科技UP主风格文章，配自定义风格的封面图和章节配图，发布到微信公众号草稿箱。
 
-**当前版本：v2.5.2**
+**当前版本：v2.6.0**
 
 ## 特点
 
 - **4 步全自动**：抓取 → 批量生图 → 写文章(+排版) → 发布到公众号
-- **双模式**：AI 日报（aihot 公开 API）+ GitHub 开源日报（周榜 Top10 + 本周之星）
+- **双轨选题（AI 日报）**：**热度轨**（抖音/小红书/B站/X 热议）定选题 + **一手轨**（aihot 等）核实事实
+- **双模式**：AI 日报 + GitHub 开源日报（周榜 Top10 + 本周之星）
 - **风格可自定义**：内置 4 套封面 + 4 套配图风格，可自由组合或自定义
 - **同一对话框生图**：`doubao_batch` 在同一豆包会话连续生图；会话 URL 写入 `_doubao_chat_url.txt` 支持续聊
 - **发布硬门禁**：`publish_result.json` + `verify_publish.js`，避免「只写分析就当成功」
@@ -71,20 +72,23 @@ ai-daily-skill/
 │   └── chapter/             # 章节配图风格
 ├── config.example.md        # 开源占位配置（复制为 config.md）
 └── scripts/
-    ├── fetch_ai_daily.js          # AI 日报抓取（本地日期 / 读 OUTPUT_ROOT）
-    ├── fetch_weekly_trending.py   # GitHub 周榜多后端抓取
-    ├── typeset_gzh.py             # 摸鱼绿等 gzh 排版
-    ├── validate_gzh_html.py       # 公众号 HTML 合规校验
-    ├── verify_publish.js          # 发布完成硬门禁
-    └── cleanup.js                 # 日期目录清理（≥14 留最新 7）
+    ├── fetch_ai_daily.js          # 一手轨：aihot
+    ├── init_heat_track.js         # 热度轨：生成检索计划
+    ├── merge_daily_bundle.js      # 合并 → daily_bundle.json
+    ├── fetch_weekly_trending.py   # GitHub 周榜
+    ├── typeset_gzh.py / validate_gzh_html.py / verify_publish.js / cleanup.js
 ```
 
 ## 4 步流程（摘要）
 
-1. **抓取**：`fetch_ai_daily.js` 或 `fetch_weekly_trending.py`
+1. **抓取（AI 日报双轨）**  
+   - 一手：`fetch_ai_daily.js` → `raw_daily.json`  
+   - 热度：`init_heat_track.js` → Agent 填 `heat_track.json`（规范：`references/heat-track.md`）  
+   - 合并：`merge_daily_bundle.js` → `daily_bundle.json`（写作主输入）  
+   - GitHub 模式：`fetch_weekly_trending.py`（不走热度轨）
 2. **生图**：写 `_batch_config.json` → **一次** `doubao_batch.js`（同一豆包对话框）
-3. **写文章**：`article.md`；可选 `typeset_gzh.py` → `article.html`
-4. **发布**：`publish_article.js` → `verify_publish.js`（必须有 media_id）
+3. **写文章**：按 `article-prompt-ai.md`（含**【今日热议】**）→ `article.md`；可选 typeset
+4. **发布**：`publish_article.js` → `verify_publish.js` → `cleanup.js`
 
 成功通知建议包含：标题、本地发布时间、media_id、草稿箱链接 https://mp.weixin.qq.com
 

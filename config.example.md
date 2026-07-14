@@ -64,6 +64,24 @@
 **GITHUB_DAILY_SOURCE**: `A`  
 **CUSTOM_KEYWORDS**: `""`
 
+### 热度轨（平台热议 · 选题主轴）
+
+| 配置键 | 示例值 | 说明 |
+|--------|--------|------|
+| `HEAT_TRACK` | `true` | 是否启用 |
+| `HEAT_PLATFORMS` | `xiaohongshu,bilibili,douyin,x` | 可删减平台 |
+| `HEAT_KEYWORDS` | `AI,GPT,大模型,Agent,Claude` | 搜索词 |
+| `HEAT_TOP_PER_PLATFORM` | `3` | 每平台最多条数 |
+| `HEAT_MAX_TOTAL` | `8` | 合并上限 |
+| `HEAT_REQUIRE_VERIFY` | `true` | 进正文前核实 |
+
+**HEAT_TRACK**: `true`  
+**HEAT_PLATFORMS**: `xiaohongshu,bilibili,douyin,x`  
+**HEAT_KEYWORDS**: `AI,GPT,大模型,Agent,Claude,OpenAI`  
+**HEAT_TOP_PER_PLATFORM**: `3`  
+**HEAT_MAX_TOTAL**: `8`  
+**HEAT_REQUIRE_VERIFY**: `true`
+
 ## GitHub 周榜抓取配置
 
 | 变量 | 默认值 | 说明 |

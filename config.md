@@ -69,10 +69,32 @@
 **AI_DAILY_SOURCE**: `A`
 
 可选值：
-- `A` = 使用默认（aihot.virxact.com 公开 API 自动抓取）- 最快，无需登录
+- `A` = 使用默认（aihot.virxact.com 公开 API 自动抓取）- 最快，无需登录（**一手轨 / 核实底稿**）
 - `B` = 网页搜索 - 搜特定关键词
 - `C` = 手动输入 - 在对话中直接贴热点列表
 - `D` = 自定义 API / 命令 - 提供自己的数据源 URL 或命令
+
+> **双轨（默认）**：热度轨（平台热议）选题 + 一手轨（本项 A）核实。详见下方「热度轨」。
+
+### 热度轨（平台热议 · 选题主轴）
+
+控制是否从抖音 / 小红书 / B 站 / X 等抓「正在火的话题」。规范见 `references/heat-track.md`。
+
+| 配置键 | 你的值 | 说明 |
+|--------|--------|------|
+| `HEAT_TRACK` | `true` | 是否启用热度轨（`true`/`false`）。定时任务建议 `true` |
+| `HEAT_PLATFORMS` | `xiaohongshu,bilibili,douyin,x` | 平台：小红书/B站/抖音/X，逗号分隔；可删减 |
+| `HEAT_KEYWORDS` | `AI,GPT,大模型,Agent,Claude,OpenAI` | 搜索关键词，逗号分隔 |
+| `HEAT_TOP_PER_PLATFORM` | `3` | 每平台最多收录几条 |
+| `HEAT_MAX_TOTAL` | `8` | 合并去重后最多几条进 bundle |
+| `HEAT_REQUIRE_VERIFY` | `true` | `true`：进「今日热议」正文前必须核实（confirmed/partial） |
+
+**HEAT_TRACK**: `true`  
+**HEAT_PLATFORMS**: `xiaohongshu,bilibili,douyin,x`  
+**HEAT_KEYWORDS**: `AI,GPT,大模型,Agent,Claude,OpenAI`  
+**HEAT_TOP_PER_PLATFORM**: `3`  
+**HEAT_MAX_TOTAL**: `8`  
+**HEAT_REQUIRE_VERIFY**: `true`
 
 ### GitHub 日报信息源
 

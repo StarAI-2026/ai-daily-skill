@@ -1,0 +1,105 @@
+# 热度轨（Heat Track）操作规范
+
+> AI 日报选题以**自媒体平台热度**为主，一手资讯（aihot / 官网）为辅做核实。  
+> 本文件供 Agent 在 Step 1 执行；配置项见 `config.md` 的「热度轨」段。
+
+---
+
+## 1. 目标
+
+- 从抖音 / 小红书 / B 站 / X（及配置中的平台）找出**今天 AI 圈正在聊的话题**
+- 每个话题写进 `heat_track.json`，再经核实后进稿
+- **禁止**把未核实的热搜写成「官方宣布」
+
+---
+
+## 2. 配置项（读 config.md）
+
+| 键 | 含义 |
+|----|------|
+| `HEAT_TRACK` | `true`/`false`，是否启用（默认 true） |
+| `HEAT_PLATFORMS` | 平台列表，逗号分隔：`xiaohongshu,bilibili,douyin,x` |
+| `HEAT_KEYWORDS` | 搜索关键词，逗号分隔 |
+| `HEAT_TOP_PER_PLATFORM` | 每平台最多取几条（默认 3） |
+| `HEAT_MAX_TOTAL` | 全平台合并去重后最多几条进稿（默认 8） |
+| `HEAT_REQUIRE_VERIFY` | `true` 时每条必须填核实结论才能进「今日热议」正文 |
+
+---
+
+## 3. 执行顺序（强制）
+
+```
+1) node scripts/fetch_ai_daily.js   → raw_daily.json（一手底稿）
+2) node scripts/init_heat_track.js  → heat_track_plan.json + 空 heat_track.json 骨架
+3) Agent 按 plan 检索各平台热度，填满 heat_track.json
+4) 用 raw_daily / 网页搜索 做事实核实，更新 verify 字段
+5) node scripts/merge_daily_bundle.js → daily_bundle.json
+6) 写文章时：热度轨选题优先，一手轨补事实与次要条目
+```
+
+定时/无人值守：**禁止因平台难抓而跳过整轨**。若某平台失败：
+
+- 在 `heat_track.json` 的 `platforms_failed` 记录原因
+- 用 **web 搜索**（关键词 + 平台名 + 「热搜/热榜」）尽量补
+- 仍不足时：从 `raw_daily.json` 里挑标题最「像热搜」的条目降级写入，`source_type: "fallback_aihot"`，并在文中**不要**伪装成小红书/抖音热议
+
+---
+
+## 4. 各平台怎么找（务实）
+
+| 平台 | 推荐做法 | 不要做 |
+|------|----------|--------|
+| 小红书 | 搜索关键词，看赞藏评高的笔记标题/话题 | 硬爬整站、伪造笔记链接 |
+| B 站 | 搜索 + 综合排序/热门，看播放评论 | 把教程课当成「突发热点」硬凑 |
+| 抖音 | 搜索关键词，看点赞评论高的视频话题 | 无法打开时瞎编「抖音百万赞」 |
+| X | 搜索 AI 关键词 / 已知大事件 | 无 Cookie 时不要假装抓到了推文全文 |
+
+有 **agent-reach / 浏览器 / 网页搜索** 时优先用真实检索；没有则 web 搜索 + 一手核实。
+
+---
+
+## 5. heat_track.json 字段（每条 topic）
+
+```json
+{
+  "id": "heat-1",
+  "title": "话题标题（中文，短）",
+  "summary": "一句话：大家在吵什么/玩什么",
+  "platforms": ["xiaohongshu", "bilibili"],
+  "heat_signal": "例如：小红书多篇万赞；B站相关视频播放合计高",
+  "keywords_hit": ["GPT", "Agent"],
+  "example_urls": ["https://..."],
+  "source_type": "platform_search",
+  "verify": {
+    "status": "confirmed | partial | rumor | unknown",
+    "fact_note": "核实结论：对应官方/媒体说了什么，或尚无实锤",
+    "fact_urls": []
+  },
+  "use_in_article": true,
+  "angle": "建议写作角度：避坑 / 跟风测评 / 行业震动 / 工具更新"
+}
+```
+
+**进「今日热议」正文的条件**（`HEAT_REQUIRE_VERIFY=true` 时）：
+
+- `use_in_article: true`
+- `verify.status` 为 `confirmed` 或 `partial`（`rumor` 只能写「网传/待观察」，且最多 1 条）
+- `unknown` 且无热度信号 → 不要进正文
+
+---
+
+## 6. 与写作的关系
+
+- **今日热议**板块：主要来自 `heat_track.json`（2～5 条）
+- **今日之星 / 重点推荐**：优先热度与一手都覆盖的话题；其余可来自 aihot
+- 文中标注平台：`小红书热议` / `B站讨论多`，核实后的事实另说
+- 禁止：未核实写成「某某公司正式发布」
+
+---
+
+## 7. 成功标准（本轨）
+
+- [ ] 存在 `heat_track.json` 且 `topics.length >= 1`（极差天才允许 0 并写明原因）
+- [ ] 存在 `daily_bundle.json`（merge 脚本生成）
+- [ ] 文章含 **【今日热议】** 小节（或开场白明确点出 2 个以上热议话题）
+- [ ] 无「伪造平台数据」；失败平台已记入 `platforms_failed`
