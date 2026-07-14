@@ -79,9 +79,16 @@ function main() {
   const keywords = parseList(cfg.HEAT_KEYWORDS, [
     'AI',
     'GPT',
-    '大模型',
-    'Agent',
     'Claude',
+    '豆包',
+    '千问',
+    'Agent',
+    'Codex',
+    '实测',
+    '下线',
+    '封号',
+    'AI视频',
+    '智能体',
   ]);
   const topPer = parseIntSafe(cfg.HEAT_TOP_PER_PLATFORM, 3);
   const maxTotal = parseIntSafe(cfg.HEAT_MAX_TOTAL, 8);
@@ -98,15 +105,31 @@ function main() {
     top_per_platform: topPer,
     max_total: maxTotal,
     require_verify: requireVerify,
+    heat_quality: {
+      goal: '普通人会刷到、会讨论的高热 AI 话题；禁止只堆单一细类',
+      checklist: [
+        '普通人在不在乎（会截图转发吗）',
+        '平台上是不是很多人在聊',
+        '和「我今天用 AI」有没有关系',
+      ],
+      diversity:
+        '前 5～8 条尽量覆盖 ≥3 种形态：产品突变/权益与可用/全网实测/工具入口/安全避坑/内容玩法/情绪社会等',
+      anti_patterns: [
+        '整期只写额度/会员/计费',
+        '整期只写冷门开源发版',
+        '把 aihot 列表原样当热榜',
+      ],
+      note: '某类样例（如额度重置）只用于校准「什么叫热」，不是唯一栏目',
+    },
     search_queries: platforms.flatMap((p) =>
-      keywords.slice(0, 6).map((k) => ({
+      keywords.slice(0, 8).map((k) => ({
         platform: p,
         query: k,
         hint:
           p === 'xiaohongshu'
-            ? `小红书搜索「${k}」按热度看笔记`
+            ? `小红书搜索「${k}」按热度看笔记；再补「实测/下线/避坑」等讨论向`
             : p === 'bilibili'
-              ? `B站搜索「${k}」综合/热门`
+              ? `B站搜索「${k}」综合/热门；优先高播放讨论视频而非纯教程课`
               : p === 'douyin'
                 ? `抖音搜索「${k}」看高赞话题`
                 : p === 'x'

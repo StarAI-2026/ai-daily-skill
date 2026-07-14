@@ -77,7 +77,7 @@
 
 **HEAT_TRACK**: `true`  
 **HEAT_PLATFORMS**: `xiaohongshu,bilibili,douyin,x`  
-**HEAT_KEYWORDS**: `AI,GPT,大模型,Agent,Claude,OpenAI`  
+**HEAT_KEYWORDS**: `AI,GPT,Claude,豆包,千问,Agent,Codex,实测,下线,封号,AI视频,智能体`  
 **HEAT_TOP_PER_PLATFORM**: `3`  
 **HEAT_MAX_TOTAL**: `8`  
 **HEAT_REQUIRE_VERIFY**: `true`

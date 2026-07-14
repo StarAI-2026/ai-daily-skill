@@ -1,7 +1,7 @@
 ---
 name: ai-daily
 description: "AI日报/GitHub开源日报全自动发布。触发词：发布日报/写日报/StarAI日报/生成日报/公众号日报/发布GitHub日报/StarAI开源日报/GitHub热门项目/定时任务/cron/自动发布。执行4步：抓取->批量生图->写文章+排版->publish_article.js 发布并返回media_id。独立skill；定时任务零交互。"
-version: 2.6.0
+version: 2.6.1
 author: StarAI
 license: MIT
 metadata:
@@ -529,6 +529,11 @@ AI 会：
 详细故障排除见 `references/troubleshooting.md`。
 
 ## CHANGELOG
+
+### v2.6.1 (2026-07-14)
+- **热度质量**：`heat-track.md` §1.5 明确「够热」三问 + 多形态样例（额度等只是校准样例，禁止锁死单一细类）
+- 选题多样性：前 5～8 条尽量 ≥3 种热度形态；禁止整期额度专题或整期冷门开源
+- `init_heat_track.js` 的 plan 写入 `heat_quality` 供 Agent 对照；关键词增加实测/下线/产品名等讨论向种子
 
 ### v2.6.0 (2026-07-14)
 - **热度轨**：AI 日报以抖音/小红书/B站/X 等平台热议为选题主轴；aihot 等为一手核实轨

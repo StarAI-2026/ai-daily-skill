@@ -84,14 +84,16 @@
 |--------|--------|------|
 | `HEAT_TRACK` | `true` | 是否启用热度轨（`true`/`false`）。定时任务建议 `true` |
 | `HEAT_PLATFORMS` | `xiaohongshu,bilibili,douyin,x` | 平台：小红书/B站/抖音/X，逗号分隔；可删减 |
-| `HEAT_KEYWORDS` | `AI,GPT,大模型,Agent,Claude,OpenAI` | 搜索关键词，逗号分隔 |
+| `HEAT_KEYWORDS` | 见下方 | 搜索种子词；须含产品/体验/讨论向，不能只有「大模型」 |
 | `HEAT_TOP_PER_PLATFORM` | `3` | 每平台最多收录几条 |
 | `HEAT_MAX_TOTAL` | `8` | 合并去重后最多几条进 bundle |
 | `HEAT_REQUIRE_VERIFY` | `true` | `true`：进「今日热议」正文前必须核实（confirmed/partial） |
 
+> 热度判定与多样性规则见 `references/heat-track.md` §1.5（**不**锁死额度/会员等单一栏目）。
+
 **HEAT_TRACK**: `true`  
 **HEAT_PLATFORMS**: `xiaohongshu,bilibili,douyin,x`  
-**HEAT_KEYWORDS**: `AI,GPT,大模型,Agent,Claude,OpenAI`  
+**HEAT_KEYWORDS**: `AI,GPT,Claude,豆包,千问,Agent,Codex,实测,下线,封号,AI视频,智能体`  
 **HEAT_TOP_PER_PLATFORM**: `3`  
 **HEAT_MAX_TOTAL**: `8`  
 **HEAT_REQUIRE_VERIFY**: `true`
